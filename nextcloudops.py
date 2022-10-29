@@ -48,7 +48,8 @@ from xml.etree.ElementTree import XMLParser
 # python3 -m pip install webdavclient3
 # ^ not imported until used in the function further down
 # python3 -m pip install --user pyncclient
-# python3 -m pip install --user requests # as per https://pypi.org/project/pyncclient/
+# python3 -m pip install --user requests
+# ^ as per https://pypi.org/project/pyncclient/
 
 if sys.version_info.major < 3:
     input = raw_input
@@ -128,6 +129,7 @@ OPTIONS_HELP = {
  'webdav_password': ' (will be stored in plain text at "{}")'.format(MY_CONF)
 }
 
+
 def usage():
     echo0(__doc__.format(
         nextcloudwebdev=MY_CONF_DIR,
@@ -143,7 +145,8 @@ def load_options():
                 print('* reading "{}"'.format(MY_CONF))
                 results = json.load(f)
     except json.decoder.JSONDecodeError as ex:
-        print('"{}" is incorrectly formatted. Remove it if you want to rewrite it.'.format(MY_CONF))
+        print('"{}" is incorrectly formatted.'
+              ' Remove it if you want to rewrite it.'.format(MY_CONF))
         raise ex
     return results
 
@@ -193,7 +196,9 @@ class DAVXMLParser:
     depth = 0
     verbose = True
     tab = "  "
-    # ^ See <https://docs.python.org/3/library/xml.etree.elementtree.html#xmlparser-objects>
+    # ^ See <https://docs.python.org/3/library/
+    #   xml.etree.elementtree.html#xmlparser-objects>
+
     def start(self, tag, attrs):
         '''
         An opening tag is found.
@@ -211,7 +216,8 @@ class DAVXMLParser:
         self.parent = response
         # self.davtree.append(response)
         self.indent = self.depth*self.tab
-        echo2(self.indent+"TAG={} ATTRS={} len(self.stack)={}".format(tag, attrs, len(self.stack)))
+        echo2(self.indent+"TAG={} ATTRS={} len(self.stack)={}"
+              "".format(tag, attrs, len(self.stack)))
         self.depth += 1
         self.indent = self.depth*"  "
 
@@ -225,14 +231,18 @@ class DAVXMLParser:
         if len(self.stack) > 0:
             expected_tag = self.stack[-1].tag
             if tag != expected_tag:
-                echo2(self.indent+"closing {} automatically".format(expected_tag))
+                echo2(self.indent+"closing {} automatically"
+                      "".format(expected_tag))
                 del self.stack[-1]
                 # See if it is a self-closing tag.
                 expected_tag = self.stack[-1].tag
                 self.depth -= 1
                 self.parent = self.parent.parent
                 if tag != expected_tag:
-                    raise SyntaxError("{} was expected but got {}".format(expected_tag, tag))
+                    raise SyntaxError(
+                        "{} was expected but got {}"
+                        "".format(expected_tag, tag)
+                    )
             del self.stack[-1]
         else:
             echo2(self.indent+"  WARNING: unexpected end tag={}".format(tag))
@@ -264,63 +274,66 @@ class DAVXMLParser:
 # trash (skipping several; The reason for 404's is unknown):
 example_trash = '''<?xml version="1.0"?>
 <d:multistatus
-	xmlns:d="DAV:"
-	xmlns:s="http://sabredav.org/ns"
-	xmlns:oc="http://owncloud.org/ns"
-	xmlns:nc="http://nextcloud.org/ns">
-	<d:response>
-		<d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:resourcetype>
-					<d:collection/>
-				</d:resourcetype>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/Blender%202.81%20project.blend1.d1614292530</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:getlastmodified>Thu, 25 Feb 2021 22:35:30 GMT</d:getlastmodified>
-				<d:getcontentlength>1919620</d:getcontentlength>
-				<d:resourcetype/>
-				<d:getetag>1614292530</d:getetag>
-				<d:getcontenttype>application/octet-stream</d:getcontenttype>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:quota-used-bytes/>
-				<d:quota-available-bytes/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
-	<d:response>
-		<d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/The%20Path%20of%20Resistance_autosave_08_08_2021_02_23.sla.d1628404390</d:href>
-		<d:propstat>
-			<d:prop>
-				<d:getlastmodified>Sun, 08 Aug 2021 06:33:10 GMT</d:getlastmodified>
-				<d:getcontentlength>4416353</d:getcontentlength>
-				<d:resourcetype/>
-				<d:getetag>1628404390</d:getetag>
-				<d:getcontenttype>application/octet-stream</d:getcontenttype>
-			</d:prop>
-			<d:status>HTTP/1.1 200 OK</d:status>
-		</d:propstat>
-		<d:propstat>
-			<d:prop>
-				<d:quota-used-bytes/>
-				<d:quota-available-bytes/>
-			</d:prop>
-			<d:status>HTTP/1.1 404 Not Found</d:status>
-		</d:propstat>
-	</d:response>
+    xmlns:d="DAV:"
+    xmlns:s="http://sabredav.org/ns"
+    xmlns:oc="http://owncloud.org/ns"
+    xmlns:nc="http://nextcloud.org/ns">
+    <d:response>
+        <d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:resourcetype>
+                    <d:collection/>
+                </d:resourcetype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/Blender%202.81%20project.blend1.d1614292530</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getlastmodified>Thu, 25 Feb 2021 22:35:30 GMT
+                </d:getlastmodified>
+                <d:getcontentlength>1919620</d:getcontentlength>
+                <d:resourcetype/>
+                <d:getetag>1614292530</d:getetag>
+                <d:getcontenttype>application/octet-stream</d:getcontenttype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+        <d:propstat>
+            <d:prop>
+                <d:quota-used-bytes/>
+                <d:quota-available-bytes/>
+            </d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+        </d:propstat>
+    </d:response>
+    <d:response>
+        <d:href>/nextcloud/remote.php/dav/trashbin/redacted/trash/The%20Path%20of%20Resistance_autosave_08_08_2021_02_23.sla.d1628404390</d:href>
+        <d:propstat>
+            <d:prop>
+                <d:getlastmodified>Sun, 08 Aug 2021 06:33:10 GMT
+                </d:getlastmodified>
+                <d:getcontentlength>4416353</d:getcontentlength>
+                <d:resourcetype/>
+                <d:getetag>1628404390</d:getetag>
+                <d:getcontenttype>application/octet-stream</d:getcontenttype>
+            </d:prop>
+            <d:status>HTTP/1.1 200 OK</d:status>
+        </d:propstat>
+        <d:propstat>
+            <d:prop>
+                <d:quota-used-bytes/>
+                <d:quota-available-bytes/>
+            </d:prop>
+            <d:status>HTTP/1.1 404 Not Found</d:status>
+        </d:propstat>
+    </d:response>
 </d:multistatus>
 '''
+
 
 class WebDav3Mgr:
     '''
@@ -361,7 +374,8 @@ class WebDav3Mgr:
         echo0("* using {}".format(os.path.realpath(webdav3.__file__)))
         # self.host_and_api_route = webdav_options['webdav_hostname']
         self.client = Client(webdav_options)
-        # self.client.verify = False # To not check SSL certificates (Default = True)
+        # self.client.verify = False
+        # ^ To not check SSL certificates (Default = True)
 
     def get_rel_from_partial_url(self, partial_url):
         api_route_i = partial_url.find(self.api_route)
@@ -395,7 +409,7 @@ class WebDav3Mgr:
         echo0("rel_url={}".format(rel_url))
         try_path = rel_url
         parts = self.webdav_hostname.split("/")
-        #^  ['https:', '', 'example.com', 'nextcloud']
+        # ^  ['https:', '', 'example.com', 'nextcloud']
         main_route = None
         # <https://docs.nextcloud.com/server/19/developer_manual/
         #   client_apis/WebDAV/basic.html
@@ -421,7 +435,8 @@ class WebDav3Mgr:
         from webdav3.urn import Urn
         urn = Urn(remote_path)
         # echo0("urn={}".format(urn.quote()))
-        result = self.client.execute_request(action='clean', path=urn.quote()[1:])
+        result = self.client.execute_request(action='clean',
+                                             path=urn.quote()[1:])
         echo0("result: {}".format(result))  # "<Response [200]>"
 
     def get_trash(self, test_xml=None):
@@ -434,9 +449,12 @@ class WebDav3Mgr:
         something ending with that.
         '''
         results = None
-        # raise NotImplementedError("list is not supported, so use connect_pyncclient instead.")
-        # client.session.proxies(...) # To set proxy directly into the session (Optional)
-        # client.session.auth(...) # To set proxy auth directly into the session (Optional)
+        # raise NotImplementedError("list is not supported, so"
+        #                           " use connect_pyncclient instead.")
+        # client.session.proxies(...)
+        # ^ To set proxy directly into the session (Optional)
+        # client.session.auth(...)
+        # ^ To set proxy auth directly into the session (Optional)
         # client.execute_request("mkdir", 'directory_name')
         # based on text from <https://pypi.org/project/webdavclient3/>:
         '''
@@ -457,15 +475,20 @@ class WebDav3Mgr:
             # password = self.password
 
             # path = "/trash"
-            # results = self.client.execute_request("list", path) # list is not supported
+            # results = self.client.execute_request("list", path)
+            # ^ Error: "'list' not supported" etc. if URL is wrong
+            # (use remote.php/dav to fix the issue)
 
-            # ^ server says: Method 'list' is not supported for https://birdo.dyndns.org/nextcloud
+            # ^ server says: Method 'list' is not supported for
+            #   https://birdo.dyndns.org/nextcloud
             # results = self.client.execute_request("list", path)
             print("* accessing {}".format(path))
 
             res = self.client.execute_request("list", path)
-            # raises webdav3.exceptions.RemoteResourceNotFound if path is wrong
-            # print("results: {}".format(res)) # Just says something like "<Response [200]>"
+            # raises webdav3.exceptions.RemoteResourceNotFound
+            #   if path is wrong
+            # print("results: {}".format(res))
+            # ^ Just says something like "<Response [200]>"
             # print(dir(res))
             '''
             ^ non-hidden members are: 'apparent_encoding', 'close',
@@ -475,19 +498,27 @@ class WebDav3Mgr:
             'raise_for_status', 'raw', 'reason', 'request', 'status_code',
             'text', 'url'
             '''
-            print("status_code: {}".format(res.status_code)) # 200 no matter what if not a webdav folder, so make sure that's right
-            # print("content: {}".format(res.content)) # blank bytestring
-            # print("json: {}".format(res.json)) # "<bound method Response.json of <Response [200]>>"
-            # print("json: {}".format(res.json())) # "<bound method Response.json of <Response [200]>>"
-            # ^ blank apparently ("json.decoder.JSONDecodeError: Expecting value: line 1 column 1 (char 0)")
+            print("status_code: {}".format(res.status_code))
+            # ^ 200 no matter what if not a webdav folder,
+            #   so it has to be correct before getting this far.
+            # print("content: {}".format(res.content))
+            # ^ blank bytestring
+            # print("json: {}".format(res.json))
+            # ^ "<bound method Response.json of <Response [200]>>"
+            # print("json: {}".format(res.json()))
+            # ^ "<bound method Response.json of <Response [200]>>"
+            # ^ blank apparently ("json.decoder.JSONDecodeError:
+            #   Expecting value: line 1 column 1 (char 0)")
             # print("text: {}".format(res.text))  # blank
             if len(res.text) < 1:
                 return None
 
             # results_json = res.json()
             # print("json: {}".format(results_json))
-            # ^ always raises json.decoder.JSONDecodeError since it is XML not json.
-            # So see <https://docs.python.org/3/library/xml.etree.elementtree.html>:
+            # ^ always raises json.decoder.JSONDecodeError since it is
+            #   XML not json.
+            # So see <https://docs.python.org/3/library/
+            #   xml.etree.elementtree.html>:
             # root = ET.fromstring(res.text)
             # ^ seems to get a bunch of dumb empty "{DAV}:{}" tags, so use mine:
             parser.feed(res.text)
@@ -501,7 +532,8 @@ class WebDav3Mgr:
             # ^ just says CLOSE
             #   (if is subclass of xml.etree.ElementTree.XMLParser)
 
-            # So see <https://docs.python.org/3/library/xml.etree.elementtree.html#xmlparser-objects>:
+            # So see <https://docs.python.org/3/library/
+            #   xml.etree.elementtree.html#xmlparser-objects>:
             parser.feed(test_xml)
         parser.close()
         root = target.davroot
@@ -511,18 +543,20 @@ class WebDav3Mgr:
         # ^ has 0
         print(root)  # <Element '{DAV:}multistatus' at 0x7f2bcb9cf9f0>
         # responses = root.find("response")
-        # print("responses={}".format(responses)) # None for d:response, d, DAV:response, response
+        # print("responses={}".format(responses))
+        # ^ None for d:response, d, DAV:response, response
 
         for child in root.children:
             # print(child.tag, child.attrib)
             # ^ just shows 3 instances of "{DAV:}response {}"
-            print("tag={}".format(child.tag)) # "{DAV:}response"
+            print("tag={}".format(child.tag))  # "{DAV:}response"
             # print("attrib={}".format(child.attrib))  # "{}"
             # print("d:href={}".format(child.get("d:href")))  # None
             # print("href={}".format(child.get("href")))  # None
             # print("d={}".format(child.get("d")))  # None
             # print("d:href={}".format(child.get_data("d:href")))
-            # For the format of target, see test-list-trash--via+xml-formatter.out
+            # For the format of target, see
+            # test-list-trash--via+xml-formatter.out
             # for k, v in child.tag.items(): # str has no attribute items
             #     print("    tag.{}={}".format(k, v))
             # print("keys={}".format(child.keys()))  # "[]"
@@ -535,9 +569,12 @@ class WebDav3Mgr:
                 href_url_encoded = gc.get_data("d:href")
                 echo1("    d:href={}".format(href_url_encoded))
                 # ^ such as
-                # /nextcloud/remote.php/dav/trashbin/redacted/trash/Blender%202.81%20project.blend1.d1614292530
+                #   /nextcloud/remote.php/dav/trashbin/redacted/trash/
+                #   Blender%202.81%20project.blend1.d1614292530
                 # - where "/remote.php/dav" is self.api_route
-                rel_url_encoded = self.get_rel_from_partial_url(href_url_encoded)
+                rel_url_encoded = self.get_rel_from_partial_url(
+                    href_url_encoded
+                )
                 if rel_url_encoded is None:
                     # error was already shown above
                     continue
@@ -552,21 +589,34 @@ class WebDav3Mgr:
                     prop = ggc.get("d:prop")
                     status_data = ggc.get_data("d:status")
                     echo1("      status_data={}".format(status_data))
-                    echo1("      prop:{}".format(prop))  # None if it is d:href and not one of the d:propstat children
+                    echo1("      prop:{}".format(prop))
+                    # ^ None if it is d:href and not one of the
+                    #   d:propstat children
                     if prop.get('d:getcontenttype') is not None:
                         if not status_data == "HTTP/1.1 200 OK":
                             if get_verbosity() < 1:
-                                echo0("      status_data={}".format(status_data))
-                            echo0("        status_data={}".format(status_data))
-                            echo0("        getlastmodified={}".format(prop.get_data('d:getlastmodified')))
+                                echo0("      status_data={}".format(
+                                    status_data
+                                ))
+                            echo0("        status_data={}".format(
+                                status_data
+                            ))
+                            echo0("        getlastmodified={}"
+                                  "".format(prop.get_data('d:getlastmodified')))
                             # ^ such as "Sun, 08 Aug 2021 06:33:10 GMT"
-                            echo0("        getcontentlength={}".format(prop.get_data('d:getcontentlength')))
+                            echo0("        getcontentlength={}".format(
+                                prop.get_data('d:getcontentlength')
+                            ))
                             # ^ getcontentlength is in bytes
-                            # print("        resourcetype={}".format(prop.get_data('d:resourcetype')))
-                            # ^ resourcetype is self-closing at least in known cases for some reason
-                            echo0("        getetag={}".format(prop.get_data('d:getetag')))
+                            # print("        resourcetype={}"
+                            #       "".format(prop.get_data('d:resourcetype')))
+                            # ^ resourcetype is self-closing at
+                            #   least in known cases for some reason
+                            echo0("        getetag={}"
+                                  "".format(prop.get_data('d:getetag')))
                             # ^ getetag is an unknown log integer
-                            echo0("        getcontenttype={}".format(prop.get_data('d:getcontenttype')))
+                            echo0("        getcontenttype={}"
+                                  "".format(prop.get_data('d:getcontenttype')))
                         if results is None:
                             results = []
                         results.append(href_url_encoded)
@@ -600,7 +650,8 @@ class WebDav3Mgr:
                                   ''.format(href_url_encoded, status_data))
                             return None
                         else:
-                            echo0('INFO: status of {} is "{}"'.format(href_url_encoded, status_data))
+                            echo0('INFO: status of {} is "{}"'
+                                  ''.format(href_url_encoded, status_data))
                     else:
                         # unknown type
                         child_tags = [tagObj.tag for tagObj in prop.children]
@@ -608,13 +659,12 @@ class WebDav3Mgr:
                         echo0("  href_url_encoded={}".format(href_url_encoded))
                         echo0("  full_path={}".format(full_path))
 
-
                     # for gggc in ggc.children:
                     #     len(ggc.children)==2 -> d:prop, d:status
                     #     print("      tag={}".format(gggc.tag))
 
             # print("text={}".format(child.text))
-            #^ blank
+            # ^ blank
 
             # print(dir(child))
             child_doc = '''
@@ -623,7 +673,8 @@ class WebDav3Mgr:
             'itertext', 'keys', 'makeelement', 'remove', 'set', 'tag',
             'tail', 'text'
             '''
-            # print(child.items) # "<built-in method items of xml.etree.ElementTree.Element object at 0x7ff9131459f0>"
+            # print(child.items) # "<built-in method items of
+            #   xml.etree.ElementTree.Element object at 0x7ff9131459f0>"
             # for k, v in child.items():
             #     print("    {}={}".format(k, v))
             # ^ has 0
@@ -631,7 +682,7 @@ class WebDav3Mgr:
             #     print("    {}={}".format(k, v))
             # ^ has 0
             # for k, v in child.items():
-             #    print("    {}={}".format(k, v))
+            #     print("    {}={}".format(k, v))
             # ^ has 0
             # print("    {}={}".format(k, v))
         # responses = list(root.iter("d"))
@@ -651,8 +702,6 @@ class WebDav3Mgr:
         return results
 
 
-
-
 class PyNCClientMgr:
     '''
     Access a Nextcloud server using the pyncclient project (the
@@ -670,8 +719,8 @@ class PyNCClientMgr:
 
     def get_trash(self):
         user = options.get('webdav_login')
-        path = "trash" # 404
-        path = "/trash" # 404
+        path = "trash"  # 404
+        path = "/trash"  # 404
         # path = "/trashbin/{}/trash".format(user)  # 404
         path = "trashbin/{}/trash".format(user)  # 404
         results = None
@@ -730,7 +779,7 @@ def main():
     for k, v in DEFAULT_OPTIONS.items():
         current_v = options.get(k)
         if (current_v is None) or (len(current_v.strip()) == 0):
-            answer = input(k + OPTIONS_HELP[k]+ ": ")
+            answer = input(k+OPTIONS_HELP[k]+": ")
             # TODO: ^ hide webdav_password while typing
             options[k] = answer
             changed = True
@@ -741,7 +790,8 @@ def main():
 
     if changed:
         save_options()
-    # mgr = PyNCClientMgr()  # always has 404 on trash URLs (see PyNCClientMgr's own get_trash)
+    # mgr = PyNCClientMgr()
+    # ^ always has 404 on trash URLs (see PyNCClientMgr's own get_trash)
     mgr = WebDav3Mgr()
     results = mgr.get_trash()
     if results is None:
@@ -761,7 +811,8 @@ def main():
             for pattern in SCRIBUS_AUTOSAVES:
                 match = re.search(pattern, name)
                 # It is either None or something like
-                #   <re.Match object; span=(0, 70), match='The%20Path%20of%20Resistance_autosave_08_08_2021_>
+                #   <re.Match object; span=(0, 70),
+                #   match='The%20Path%20of%20Resistance_autosave_08_08_2021_>
                 echo2("    - match vs {}...{}".format(pattern, match))
                 if match:
                     # is object rather than None
@@ -774,9 +825,5 @@ def main():
     return 0
 
 
-
-
-
 if __name__ == "__main__":
     sys.exit(main())
-
