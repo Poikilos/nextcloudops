@@ -6,9 +6,7 @@ Website: https://github.com/poikilos/nextcloudops
 Author: Jake "Poikilos" Gustafson
 
 Delete Nextcloud trash in a fine-grained manner, and do other neat
-things using the Nextcloud WebDav API directly. This program
-circumvents the client.clean method of webdavclient3 (webdav3.client
-submodule) by removing the leading "/".
+things using the Nextcloud WebDav API directly.
 
 WARNING: This script stores the last used unencrypted password in
 {nextcloudwebdev}. To change the username, password or host, you must
@@ -18,11 +16,17 @@ script rather than as a module) will ask you for the information again.
 See also <https://pypi.org/search/?q=nextcloud> for more extensive
 ways to use Nextcloud through Python.
 
-pyncclient is based on pyocclient but is for Nextcloud and doesn't
-maintain compatibility with ownCloud. The new module name is
-nextcloud_client. It doesn't seem to delete files, so this script uses
-webdavclient3 instead. However, a minimal pyncclient wrapper class is
-included.
+Caveats:
+- The WebDav3Mgr delete method circumvents the client.clean method of
+  webdavclient3 (webdav3.client submodule) by removing the leading "/"
+  (or "/nextcloud/" or any other part after the domain there may be in
+  your specified webdav_hostname) (See
+  <https://github.com/ezhov-evgeny/webdav-client-python-3/issues/130>).
+- pyncclient is based on pyocclient but is for Nextcloud and doesn't
+  maintain compatibility with ownCloud. The new module name is
+  nextcloud_client. It doesn't seem to delete files, so this script
+  uses webdavclient3 instead. However, a minimal pyncclient wrapper
+  class is included.
 
 
 Options:
