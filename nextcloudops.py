@@ -22,6 +22,7 @@ Caveats:
   (or "/nextcloud/" or any other part after the domain there may be in
   your specified webdav_hostname) (See
   <https://github.com/ezhov-evgeny/webdav-client-python-3/issues/130>).
+  However, it still doesn't seem to work.
 - pyncclient is based on pyocclient but is for Nextcloud and doesn't
   maintain compatibility with ownCloud. The new module name is
   nextcloud_client. It doesn't seem to delete files, so this script
@@ -396,6 +397,7 @@ class WebDav3Mgr:
             server/19/developer_manual/client_apis/WebDAV/basic.html
             #deleting-files-and-folders-rfc4918>).
         '''
+        user = self.user
         rel_url = self.get_rel_from_partial_url(path)
         if rel_url is None:
             echo0("Error: {} is not in {}.".format(self.api_route, path))
@@ -425,9 +427,9 @@ class WebDav3Mgr:
             main_route_slash = main_route + "/"
             if remote_path.startswith(main_route_slash):
                 remote_path = remote_path[len(main_route_slash):]
-        echo0("DELETE {}".format(remote_path))
-        result = None
-        # result = self.client.clean(remote_path)
+        # echo0("DELETE {}".format(remote_path))
+        res = None
+        # res = self.client.clean(remote_path)
         # Clean just does:
         # urn = Urn(remote_path)
         # self.execute_request(action='clean', path=urn.quote())
@@ -435,9 +437,44 @@ class WebDav3Mgr:
         from webdav3.urn import Urn
         urn = Urn(remote_path)
         # echo0("urn={}".format(urn.quote()))
-        result = self.client.execute_request(action='clean',
-                                             path=urn.quote()[1:])
-        echo0("result: {}".format(result))  # "<Response [200]>"
+        urn_quote = urn.quote()[1:]
+        # urn_quote = self.webdav_hostname + "/" + urn_quote
+        # ^ fails
+        # try_remove = "remote.php/dav"  # fails
+        # try_remove = "remote.php/dav/"  # fails
+        # try_remove = "remote.php/dav/trashbin/{}".format(user)
+        # ^ fails
+        # try_remove = "remote.php/dav/trashbin/{}/".format(user)
+        # ^ fails (result is trash/{name})
+        # if urn_quote.startswith(try_remove):
+        #     urn_quote = urn_quote[len(try_remove):]
+        echo0("DELETE {}".format(urn_quote))
+        res = self.client.execute_request(action='clean',
+                                          path=urn_quote)
+        echo0("res: {}".format(res))  # "<Response [200]>"
+        # echo0("dir(res)={}".format(dir(res)))
+        '''
+        ^ 'apparent_encoding', 'close', 'connection', 'content',
+        'cookies', 'elapsed', 'encoding', 'headers', 'history',
+        'is_permanent_redirect', 'is_redirect', 'iter_content',
+        'iter_lines', 'json', 'links', 'next', 'ok',
+        'raise_for_status', 'raw', 'reason', 'request', 'status_code',
+        'text', 'url']
+        '''
+
+        echo0("status_code={}".format(res.status_code))
+        # ^ status code is 200 even if has:
+        # echo0("text={}".format(res.text))
+        if res.text is not None:
+            if "App not installed" in res.text:
+                raise RuntimeError(
+                    '{} is saying "App not installed".'
+                    ' See <https://github.com/ezhov-evgeny/'
+                    'webdav-client-python-3/issues/130>.'
+                    ''.format(urn_quote)
+                )
+        # if res.status_code
+        # ^ See doc/example_delete_res_text.html
 
     def get_trash(self, test_xml=None):
         '''
@@ -800,26 +837,38 @@ def main():
     if len(more_options) < 1:
         usage()
     echo0("Checking {} result(s)...".format(len(results)))
-    for result in results:
-        slashI = result.rfind("/")
-        name = result
-        if slashI > -1:
-            name = result[slashI+1:]
-        echo1("  - "+name)
-        if more_options.get("scrub-scribus") is True:
-            is_match = False
-            for pattern in SCRIBUS_AUTOSAVES:
-                match = re.search(pattern, name)
-                # It is either None or something like
-                #   <re.Match object; span=(0, 70),
-                #   match='The%20Path%20of%20Resistance_autosave_08_08_2021_>
-                echo2("    - match vs {}...{}".format(pattern, match))
-                if match:
-                    # is object rather than None
-                    is_match = True
-                    break
-            if is_match:
-                mgr.delete(result)
+    deleted_count = 0
+    inner_ex = None
+    try:
+        for result in results:
+            slashI = result.rfind("/")
+            name = result
+            if slashI > -1:
+                name = result[slashI+1:]
+            echo1("  - "+name)
+            if more_options.get("scrub-scribus") is True:
+                is_match = False
+                for pattern in SCRIBUS_AUTOSAVES:
+                    match = re.search(pattern, name)
+                    # It is either None or something like
+                    #   <re.Match object; span=(0, 70),
+                    #   match='The%20Path%20of%20Resistance_autosave_08_08_2021_>
+                    echo2("    - match vs {}...{}".format(pattern, match))
+                    if match:
+                        # is object rather than None
+                        is_match = True
+                        break
+                if is_match:
+                    deleted_count += 1
+                    mgr.delete(result)
+    except KeyboardInterrupt as ex:
+        inner_ex = ex
+    if deleted_count > 0:
+        print("* deleted {} file(s)".format())
+    if inner_ex is not None:
+        # This is raised late so the count (if > 0) of files deleted so
+        #   far is still shown.
+        raise inner_ex
     echo0("Done")
 
     return 0
