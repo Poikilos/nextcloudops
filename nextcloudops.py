@@ -393,7 +393,10 @@ class WebDav3Mgr:
         parts = self.webdav_hostname.split("/")
         #^  ['https:', '', 'example.com', 'nextcloud']
         main_route = None
-        # <> says to delete files like:
+        # <https://docs.nextcloud.com/server/19/developer_manual/
+        #   client_apis/WebDAV/basic.html
+        #   #deleting-files-and-folders-rfc4918>
+        #   says to delete files like:
         #   DELETE remote.php/dav/files/user/path/to/file
         #   Therefore clean up the path:
         remote_path = path
