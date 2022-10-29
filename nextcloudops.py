@@ -36,6 +36,11 @@ Options:
                      adding and deleting these files so Nextcloud will
                      have *many* of them stored, especially if you
                      leave the program open for a long time!
+
+--verbose            Show every list item with a bad response code, and
+                     other verbose information.
+
+--debug              Show even more verbose information.
 '''
 from __future__ import print_function
 import sys
@@ -451,7 +456,7 @@ class WebDav3Mgr:
         echo0("DELETE {}".format(urn_quote))
         res = self.client.execute_request(action='clean',
                                           path=urn_quote)
-        echo0("res: {}".format(res))  # "<Response [200]>"
+        # echo0("res: {}".format(res))  # "<Response [200]>"
         # echo0("dir(res)={}".format(dir(res)))
         '''
         ^ 'apparent_encoding', 'close', 'connection', 'content',
@@ -473,8 +478,15 @@ class WebDav3Mgr:
                     'webdav-client-python-3/issues/130>.'
                     ''.format(urn_quote)
                 )
-        # if res.status_code
+        if res.status_code != 200:
+            if (res.text is not None) and (len(res.text.strip()) > 0):
+                echo0("* {} Error:".format(res.status_code))
+                echo0(res.text)
+            else:
+                echo0("* {} (blank response)".format(res.status_code))
+            return res.status_code
         # ^ See doc/example_delete_res_text.html
+        return 0
 
     def get_trash(self, test_xml=None):
         '''
@@ -505,7 +517,7 @@ class WebDav3Mgr:
         if (test_xml is not None) and ("/redacted/" in test_xml):
             user = "redacted"
         path = "/trashbin/{}/trash".format(user)
-        full_path = self.webdav_hostname_and_route + path
+        full_trash_path = self.webdav_hostname_and_route + path
         if test_xml is None:
             # This is not a test. Download the data.
             # hostname = self.webdav_hostname_and_route
@@ -631,17 +643,17 @@ class WebDav3Mgr:
                     #   d:propstat children
                     if prop.get('d:getcontenttype') is not None:
                         if not status_data == "HTTP/1.1 200 OK":
-                            if get_verbosity() < 1:
-                                echo0("      status_data={}".format(
-                                    status_data
-                                ))
-                            echo0("        status_data={}".format(
+                            # if get_verbosity() < 1:
+                            # echo1("      status_data={}".format(
+                            #     status_data
+                            # ))
+                            echo1("        status_data={}".format(
                                 status_data
                             ))
-                            echo0("        getlastmodified={}"
+                            echo1("        getlastmodified={}"
                                   "".format(prop.get_data('d:getlastmodified')))
                             # ^ such as "Sun, 08 Aug 2021 06:33:10 GMT"
-                            echo0("        getcontentlength={}".format(
+                            echo1("        getcontentlength={}".format(
                                 prop.get_data('d:getcontentlength')
                             ))
                             # ^ getcontentlength is in bytes
@@ -649,10 +661,10 @@ class WebDav3Mgr:
                             #       "".format(prop.get_data('d:resourcetype')))
                             # ^ resourcetype is self-closing at
                             #   least in known cases for some reason
-                            echo0("        getetag={}"
+                            echo1("        getetag={}"
                                   "".format(prop.get_data('d:getetag')))
                             # ^ getetag is an unknown log integer
-                            echo0("        getcontenttype={}"
+                            echo1("        getcontenttype={}"
                                   "".format(prop.get_data('d:getcontenttype')))
                         if results is None:
                             results = []
@@ -665,7 +677,7 @@ class WebDav3Mgr:
                         # - d:quota-used-bytes
                         # - d:quota-available-bytes
                         pass
-                    elif (full_path + "/").endswith(href_url_encoded):
+                    elif (full_trash_path + "/").endswith(href_url_encoded):
                         # If the href is like
                         #   /nextcloud/remote.php/dav/trashbin/redacted/trash/
                         #   then this node is the overall status node:
@@ -692,9 +704,9 @@ class WebDav3Mgr:
                     else:
                         # unknown type
                         child_tags = [tagObj.tag for tagObj in prop.children]
-                        echo0("Unknown prop type with: {}".format(child_tags))
-                        echo0("  href_url_encoded={}".format(href_url_encoded))
-                        echo0("  full_path={}".format(full_path))
+                        echo1("Unknown prop type with: {}".format(child_tags))
+                        echo1("  href_url_encoded={}".format(href_url_encoded))
+                        # echo1("  full_trash_path={}".format(full_trash_path))
 
                     # for gggc in ggc.children:
                     #     len(ggc.children)==2 -> d:prop, d:status
@@ -859,8 +871,11 @@ def main():
                         is_match = True
                         break
                 if is_match:
+                    status_code = mgr.delete(result)
+                    if status_code != 0:
+                        # An error was already shown by delete.
+                        return status_code
                     deleted_count += 1
-                    mgr.delete(result)
     except KeyboardInterrupt as ex:
         inner_ex = ex
     if deleted_count > 0:
