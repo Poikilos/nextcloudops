@@ -50,12 +50,14 @@ import json
 import xml
 import xml.etree.ElementTree as ET
 import re
+from urllib.parse import unquote
 from xml.etree.ElementTree import XMLParser
 # python3 -m pip install webdavclient3
 # ^ not imported until used in the function further down
 # python3 -m pip install --user pyncclient
 # python3 -m pip install --user requests
 # ^ as per https://pypi.org/project/pyncclient/
+import requests  # required for custom exception handling
 
 if sys.version_info.major < 3:
     input = raw_input
@@ -402,6 +404,7 @@ class WebDav3Mgr:
             server/19/developer_manual/client_apis/WebDAV/basic.html
             #deleting-files-and-folders-rfc4918>).
         '''
+        import webdav3
         user = self.user
         rel_url = self.get_rel_from_partial_url(path)
         if rel_url is None:
@@ -412,8 +415,10 @@ class WebDav3Mgr:
         # such as <https://example.com/nextcloud/remote.php/dav/
         # trashbin/redacted/trash/
         # The%20Path%20of%20Resistance_autosave_08_08_2021_02_23.sla.d1628404390>
-        echo0("path={}".format(path))
-        echo0("rel_url={}".format(rel_url))
+        # echo0("path={}".format(path))
+        # echo0("rel_url={}".format(rel_url))  # starts with /trashbin
+
+        '''
         try_path = rel_url
         parts = self.webdav_hostname.split("/")
         # ^  ['https:', '', 'example.com', 'nextcloud']
@@ -433,59 +438,86 @@ class WebDav3Mgr:
             if remote_path.startswith(main_route_slash):
                 remote_path = remote_path[len(main_route_slash):]
         # echo0("DELETE {}".format(remote_path))
+        '''
         res = None
         # res = self.client.clean(remote_path)
         # Clean just does:
         # urn = Urn(remote_path)
-        # self.execute_request(action='clean', path=urn.quote())
-        # ^ always prepends / so:
-        from webdav3.urn import Urn
-        urn = Urn(remote_path)
-        # echo0("urn={}".format(urn.quote()))
-        urn_quote = urn.quote()[1:]
-        # urn_quote = self.webdav_hostname + "/" + urn_quote
-        # ^ fails
-        # try_remove = "remote.php/dav"  # fails
-        # try_remove = "remote.php/dav/"  # fails
-        # try_remove = "remote.php/dav/trashbin/{}".format(user)
-        # ^ fails
-        # try_remove = "remote.php/dav/trashbin/{}/".format(user)
-        # ^ fails (result is trash/{name})
-        # if urn_quote.startswith(try_remove):
-        #     urn_quote = urn_quote[len(try_remove):]
-        echo0("DELETE {}".format(urn_quote))
-        res = self.client.execute_request(action='clean',
-                                          path=urn_quote)
-        # echo0("res: {}".format(res))  # "<Response [200]>"
-        # echo0("dir(res)={}".format(dir(res)))
-        '''
-        ^ 'apparent_encoding', 'close', 'connection', 'content',
-        'cookies', 'elapsed', 'encoding', 'headers', 'history',
-        'is_permanent_redirect', 'is_redirect', 'iter_content',
-        'iter_lines', 'json', 'links', 'next', 'ok',
-        'raise_for_status', 'raw', 'reason', 'request', 'status_code',
-        'text', 'url']
-        '''
+        try:
+            res = self.client.execute_request(action='clean', path=rel_url)
+            # ^ should return 204 (No Content)
+            #   "There is no content to send for this request, but the
+            #   headers may be useful. The user agent may update its cached
+            #   headers for this resource with the new ones."
+            #   -<https://developer.mozilla.org/en-US/docs/Web/HTTP/Status>
+            # ^ resulting url constructed by execute_request is correct
+            # self.client.clean(unquote(rel_url))
+            # ^ has no return statement
+            # ^ webdav3.exceptions.RemoteResourceNotFound: Remote resource: /trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_00_14.sla.d1667190269 not found
+            #   even though its constructed url is https://example.com/nextcloud/remote.php/dav/trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_00_14.sla.d1667190269
+            # https://birdo.dyndns.org/nextcloud/remote.php/dav/trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_01_04.sla.d1667193263
+            # same as with execute_request:
+            # https://birdo.dyndns.org/nextcloud/remote.php/dav/trashbin/owner/trash/The%20Path%20of%20Resistance_autosave_30_10_2022_22_14.sla.d1667183186
+            '''
+            # ^ always prepends / so:
+            from webdav3.urn import Urn
+            urn = Urn(remote_path)
+            # echo0("urn={}".format(urn.quote()))
+            urn_quote = urn.quote()[1:]
+            # urn_quote = self.webdav_hostname + "/" + urn_quote
+            # ^ fails
+            # try_remove = "remote.php/dav"  # fails
+            # try_remove = "remote.php/dav/"  # fails
+            # try_remove = "remote.php/dav/trashbin/{}".format(user)
+            # ^ fails
+            # try_remove = "remote.php/dav/trashbin/{}/".format(user)
+            # ^ fails (result is trash/{name})
+            # if urn_quote.startswith(try_remove):
+            #     urn_quote = urn_quote[len(try_remove):]
 
-        echo0("status_code={}".format(res.status_code))
-        # ^ status code is 200 even if has:
-        # echo0("text={}".format(res.text))
-        if res.text is not None:
-            if "App not installed" in res.text:
-                raise RuntimeError(
-                    '{} is saying "App not installed".'
-                    ' See <https://github.com/ezhov-evgeny/'
-                    'webdav-client-python-3/issues/130>.'
-                    ''.format(urn_quote)
-                )
-        if res.status_code != 200:
-            if (res.text is not None) and (len(res.text.strip()) > 0):
-                echo0("* {} Error:".format(res.status_code))
-                echo0(res.text)
-            else:
-                echo0("* {} (blank response)".format(res.status_code))
-            return res.status_code
-        # ^ See doc/example_delete_res_text.html
+            urn_quote = path[len("/nextcloud/"):]  # debug only
+            echo0("DELETE {}".format(urn_quote))
+            res = self.client.execute_request(action='clean',
+                                              path=urn_quote)
+
+            '''
+            # echo0("res: {}".format(res))  # "<Response [200]>"
+            # echo0("dir(res)={}".format(dir(res)))
+
+
+            '''
+            ^ 'apparent_encoding', 'close', 'connection', 'content',
+            'cookies', 'elapsed', 'encoding', 'headers', 'history',
+            'is_permanent_redirect', 'is_redirect', 'iter_content',
+            'iter_lines', 'json', 'links', 'next', 'ok',
+            'raise_for_status', 'raw', 'reason', 'request', 'status_code',
+            'text', 'url']
+            '''
+
+            # echo0("status_code={}".format(res.status_code))
+            # ^ status code is 200 even if has:
+            # echo0("text={}".format(res.text))
+            # so make sure the URL is correct before trying! See
+            # <https://github.com/ezhov-evgeny/webdav-client-python-3/issues/130>
+            if res.text is not None:
+                if "App not installed" in res.text:
+                    raise RuntimeError(
+                        '{} is saying "App not installed".'
+                        ' See <https://github.com/ezhov-evgeny/'
+                        'webdav-client-python-3/issues/130>.'
+                        ''.format(urn_quote)
+                    )
+            if (res.status_code < 200) or (res.status_code > 299):
+                if (res.text is not None) and (len(res.text.strip()) > 0):
+                    echo0("* {} Error:".format(res.status_code))
+                    echo0(res.text)
+                else:
+                    echo0("* {} (blank response)".format(res.status_code))
+                return res.status_code
+            # ^ See doc/example_delete_res_text.html
+        except webdav3.exceptions.RemoteResourceNotFound as ex:
+            raise FileNotFoundError(str(ex))
+            # ^ Hide webdav3 from the caller (raise a standard Exception).
         return 0
 
     def get_trash(self, test_xml=None):
@@ -531,7 +563,7 @@ class WebDav3Mgr:
             # ^ server says: Method 'list' is not supported for
             #   https://birdo.dyndns.org/nextcloud
             # results = self.client.execute_request("list", path)
-            print("* accessing {}".format(path))
+            # print("* accessing {}".format(path))
 
             res = self.client.execute_request("list", path)
             # raises webdav3.exceptions.RemoteResourceNotFound
@@ -547,7 +579,7 @@ class WebDav3Mgr:
             'raise_for_status', 'raw', 'reason', 'request', 'status_code',
             'text', 'url'
             '''
-            print("status_code: {}".format(res.status_code))
+            # print("status_code: {}".format(res.status_code))
             # ^ 200 no matter what if not a webdav folder,
             #   so it has to be correct before getting this far.
             # print("content: {}".format(res.content))
@@ -851,13 +883,19 @@ def main():
     echo0("Checking {} result(s)...".format(len(results)))
     deleted_count = 0
     inner_ex = None
+    # WARNING: Each file may take about 8 seconds do delete (such as
+    #   when there are 13949 results).
+    item_n = 0
+    indent = ""
     try:
         for result in results:
+            item_n += 1
             slashI = result.rfind("/")
             name = result
             if slashI > -1:
                 name = result[slashI+1:]
-            echo1("  - "+name)
+            if echo1("  - "+name):
+                indent = "  "
             if more_options.get("scrub-scribus") is True:
                 is_match = False
                 for pattern in SCRIBUS_AUTOSAVES:
@@ -871,15 +909,32 @@ def main():
                         is_match = True
                         break
                 if is_match:
-                    status_code = mgr.delete(result)
-                    if status_code != 0:
-                        # An error was already shown by delete.
-                        return status_code
-                    deleted_count += 1
+                    try:
+                        status_code = mgr.delete(result)
+                        if status_code != 0:
+                            # An error was already shown by delete.
+                            return status_code
+                        else:
+                            echo0(indent+"- delete ({}/{}) ".format(item_n, len(results))+name)
+                        deleted_count += 1
+                    except FileNotFoundError as ex:
+                        '''
+                        Seems to happen on Ctrl+C then re-run, so may
+                        be a race condition: The file is being deleted
+                        due to a previous run but the file is still
+                        listed by the list call on this run.
+                        - Therefore, ignore it and go on.
+                        '''
+                        echo0(indent+"- not found: {}".format(name))
+                        continue
+    except requests.exceptions.ReadTimeout as ex:
+        print("* deleted {} file(s)".format(deleted_count))
+        inner_ex = ex
+        raise
     except KeyboardInterrupt as ex:
         inner_ex = ex
     if deleted_count > 0:
-        print("* deleted {} file(s)".format())
+        print("* deleted {} file(s)".format(deleted_count))
     if inner_ex is not None:
         # This is raised late so the count (if > 0) of files deleted so
         #   far is still shown.
