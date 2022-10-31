@@ -50,6 +50,11 @@ import json
 import xml
 import xml.etree.ElementTree as ET
 import re
+from datetime import (
+    datetime,
+    timedelta,
+)
+
 from urllib.parse import unquote
 from xml.etree.ElementTree import XMLParser
 # python3 -m pip install webdavclient3
@@ -150,10 +155,10 @@ def load_options():
     try:
         if os.path.isfile(MY_CONF):
             with open(MY_CONF, 'r') as f:
-                print('* reading "{}"'.format(MY_CONF))
+                echo0('* reading "{}"'.format(MY_CONF))
                 results = json.load(f)
     except json.decoder.JSONDecodeError as ex:
-        print('"{}" is incorrectly formatted.'
+        echo0('"{}" is incorrectly formatted.'
               ' Remove it if you want to rewrite it.'.format(MY_CONF))
         raise ex
     return results
@@ -269,7 +274,7 @@ class DAVXMLParser:
         self.indent = self.depth*"  "
         echo2(self.indent+"DATA: {}".format(data))
         if len(self.stack) < 1:
-            print(self.indent+"  WARNING: untagged data={}".format(data))
+            echo0(self.indent+"  WARNING: untagged data={}".format(data))
         else:
             self.stack[-1].data = data.strip()
 
@@ -379,7 +384,8 @@ class WebDav3Mgr:
             return
         import webdav3
         from webdav3.client import Client
-        echo0("* using {}".format(os.path.realpath(webdav3.__file__)))
+        using_webdav3_init = os.path.realpath(webdav3.__file__)
+        echo0("* using {}".format(os.path.dirname(using_webdav3_init)))
         # self.host_and_api_route = webdav_options['webdav_hostname']
         self.client = Client(webdav_options)
         # self.client.verify = False
@@ -484,7 +490,6 @@ class WebDav3Mgr:
             # echo0("res: {}".format(res))  # "<Response [200]>"
             # echo0("dir(res)={}".format(dir(res)))
 
-
             '''
             ^ 'apparent_encoding', 'close', 'connection', 'content',
             'cookies', 'elapsed', 'encoding', 'headers', 'history',
@@ -563,14 +568,14 @@ class WebDav3Mgr:
             # ^ server says: Method 'list' is not supported for
             #   https://birdo.dyndns.org/nextcloud
             # results = self.client.execute_request("list", path)
-            # print("* accessing {}".format(path))
+            # echo0("* accessing {}".format(path))
 
             res = self.client.execute_request("list", path)
             # raises webdav3.exceptions.RemoteResourceNotFound
             #   if path is wrong
-            # print("results: {}".format(res))
+            # echo0("results: {}".format(res))
             # ^ Just says something like "<Response [200]>"
-            # print(dir(res))
+            # echo0(dir(res))
             '''
             ^ non-hidden members are: 'apparent_encoding', 'close',
             'connection', 'content', 'cookies', 'elapsed', 'encoding',
@@ -579,23 +584,23 @@ class WebDav3Mgr:
             'raise_for_status', 'raw', 'reason', 'request', 'status_code',
             'text', 'url'
             '''
-            # print("status_code: {}".format(res.status_code))
+            # echo0("status_code: {}".format(res.status_code))
             # ^ 200 no matter what if not a webdav folder,
             #   so it has to be correct before getting this far.
-            # print("content: {}".format(res.content))
+            # echo0("content: {}".format(res.content))
             # ^ blank bytestring
-            # print("json: {}".format(res.json))
+            # echo0("json: {}".format(res.json))
             # ^ "<bound method Response.json of <Response [200]>>"
-            # print("json: {}".format(res.json()))
+            # echo0("json: {}".format(res.json()))
             # ^ "<bound method Response.json of <Response [200]>>"
             # ^ blank apparently ("json.decoder.JSONDecodeError:
             #   Expecting value: line 1 column 1 (char 0)")
-            # print("text: {}".format(res.text))  # blank
+            # echo0("text: {}".format(res.text))  # blank
             if len(res.text) < 1:
                 return None
 
             # results_json = res.json()
-            # print("json: {}".format(results_json))
+            # echo0("json: {}".format(results_json))
             # ^ always raises json.decoder.JSONDecodeError since it is
             #   XML not json.
             # So see <https://docs.python.org/3/library/
@@ -607,7 +612,7 @@ class WebDav3Mgr:
             # root = ET.fromstring(example_trash)
 
             # parser = DAVXMLParser()
-            print("feeding text_xml...")
+            echo0("feeding text_xml...")
             # parser.feed(test_xml)
             # parser.close()
             # ^ just says CLOSE
@@ -620,32 +625,36 @@ class WebDav3Mgr:
         root = target.davroot
         # Example output: See example_trash global
         # for k, v in root.items(): # 0
-        #     print("{}={}".format(k, v))
+        #     echo0("{}={}".format(k, v))
         # ^ has 0
-        print(root)  # <Element '{DAV:}multistatus' at 0x7f2bcb9cf9f0>
+        # echo0("root=".format(root))
+        # ^ blank if formatted
+        # echo0(root)
+        # ^ "<__main__.DAVNode object at 0x7f21fbb50d00>\n"
+        #   "tag=d:multistatus"
         # responses = root.find("response")
-        # print("responses={}".format(responses))
+        # echo0("responses={}".format(responses))
         # ^ None for d:response, d, DAV:response, response
 
         for child in root.children:
-            # print(child.tag, child.attrib)
+            # echo0(child.tag, child.attrib)
             # ^ just shows 3 instances of "{DAV:}response {}"
-            print("tag={}".format(child.tag))  # "{DAV:}response"
-            # print("attrib={}".format(child.attrib))  # "{}"
-            # print("d:href={}".format(child.get("d:href")))  # None
-            # print("href={}".format(child.get("href")))  # None
-            # print("d={}".format(child.get("d")))  # None
-            # print("d:href={}".format(child.get_data("d:href")))
+            echo0("tag={}".format(child.tag))  # "{DAV:}response"
+            # echo0("attrib={}".format(child.attrib))  # "{}"
+            # echo0("d:href={}".format(child.get("d:href")))  # None
+            # echo0("href={}".format(child.get("href")))  # None
+            # echo0("d={}".format(child.get("d")))  # None
+            # echo0("d:href={}".format(child.get_data("d:href")))
             # For the format of target, see
             # test-list-trash--via+xml-formatter.out
             # for k, v in child.tag.items(): # str has no attribute items
-            #     print("    tag.{}={}".format(k, v))
-            # print("keys={}".format(child.keys()))  # "[]"
-            # print("keys={}".format(child.attrib.keys())) dict_keys([])
-            # print("child.attrib('d:href')={}".format(child.attrib.get('d:href')))
+            #     echo0("    tag.{}={}".format(k, v))
+            # echo0("keys={}".format(child.keys()))  # "[]"
+            # echo0("keys={}".format(child.attrib.keys())) dict_keys([])
+            # echo0("child.attrib('d:href')={}".format(child.attrib.get('d:href')))
             for gc in child.children:
                 echo1("  tag={}".format(gc.tag))
-                # print("    d:href={}".format(gc.get("d:href")))
+                # echo0("    d:href={}".format(gc.get("d:href")))
                 # ^ "<__main__.DAVNode object at 0x7f82d62709a0>"
                 href_url_encoded = gc.get_data("d:href")
                 echo1("    d:href={}".format(href_url_encoded))
@@ -662,7 +671,7 @@ class WebDav3Mgr:
                 echo1("    rel_url_encoded={}".format(rel_url_encoded))
 
                 for ggc in gc.children:
-                    # print("    tag={}".format(ggc.tag))
+                    # echo0("    tag={}".format(ggc.tag))
                     # ^ len(gc.children)==3 -> d:href, d:propstat, d:propstat
                     if ggc.tag != "d:propstat":
                         continue
@@ -689,7 +698,7 @@ class WebDav3Mgr:
                                 prop.get_data('d:getcontentlength')
                             ))
                             # ^ getcontentlength is in bytes
-                            # print("        resourcetype={}"
+                            # echo0("        resourcetype={}"
                             #       "".format(prop.get_data('d:resourcetype')))
                             # ^ resourcetype is self-closing at
                             #   least in known cases for some reason
@@ -742,44 +751,44 @@ class WebDav3Mgr:
 
                     # for gggc in ggc.children:
                     #     len(ggc.children)==2 -> d:prop, d:status
-                    #     print("      tag={}".format(gggc.tag))
+                    #     echo0("      tag={}".format(gggc.tag))
 
-            # print("text={}".format(child.text))
+            # echo0("text={}".format(child.text))
             # ^ blank
 
-            # print(dir(child))
+            # echo0(dir(child))
             child_doc = '''
             'append', 'attrib', 'clear', 'extend', 'find', 'findall',
             'findtext', 'get', 'insert', 'items', 'iter', 'iterfind',
             'itertext', 'keys', 'makeelement', 'remove', 'set', 'tag',
             'tail', 'text'
             '''
-            # print(child.items) # "<built-in method items of
+            # echo0(child.items) # "<built-in method items of
             #   xml.etree.ElementTree.Element object at 0x7ff9131459f0>"
             # for k, v in child.items():
-            #     print("    {}={}".format(k, v))
+            #     echo0("    {}={}".format(k, v))
             # ^ has 0
             # for k, v in child.attrib.items():
-            #     print("    {}={}".format(k, v))
+            #     echo0("    {}={}".format(k, v))
             # ^ has 0
             # for k, v in child.items():
-            #     print("    {}={}".format(k, v))
+            #     echo0("    {}={}".format(k, v))
             # ^ has 0
-            # print("    {}={}".format(k, v))
+            # echo0("    {}={}".format(k, v))
         # responses = list(root.iter("d"))
         # for response in responses:
-        #     print("response: {}".format(response))
+        #     echo0("response: {}".format(response))
         # ^ has 0 whether d, d:, d:response, DAV, DAV:, or DAV:response
         # responses = list(root.iter("d"))
         # for response in responses:
-        #     print("response: {}".format(response))
+        #     echo0("response: {}".format(response))
 
         # for response in root.findall('d:response'):
-            # print(child.tag, child.attrib)
+            # echo0(child.tag, child.attrib)
             # ^ just shows 3 instances of "{DAV:}response {}"
             # for response in root.findall('d'):
             # href = child.get('d:href')
-            # print(href)
+            # echo0(href)
         return results
 
 
@@ -794,7 +803,7 @@ class PyNCClientMgr:
         hostname = options.get('webdav_hostname')
         user = options.get('webdav_login')
         password = options.get('webdav_password')
-        print("* connecting to {}".format(hostname))
+        echo0("* connecting to {}".format(hostname))
         self.nc = nextcloud_client.Client(hostname)
         self.nc.login(user, password)
 
@@ -816,7 +825,7 @@ class PyNCClientMgr:
             ' <https://pypi.org/project/pyncclient/>'.format(sub_path)
         )
         '''
-        print("* accessing {}".format(path))
+        echo0("* accessing {}".format(path))
         results = self.nc.list(path, depth=1, properties=None)
 
         return results
@@ -829,7 +838,7 @@ class PyNCClientMgr:
     def share(self, path):
         raise NotImplementedError("share")
         # link_info = nc.share_file_with_link('testdir/remotefile.txt')
-        print("Here is your link: " + link_info.get_link())
+        echo0("Here is your link: " + link_info.get_link())
 
 
 def main():
@@ -883,10 +892,15 @@ def main():
     echo0("Checking {} result(s)...".format(len(results)))
     deleted_count = 0
     inner_ex = None
-    # WARNING: Each file may take about 8 seconds do delete (such as
-    #   when there are 13949 results).
+    '''
+    if len(results) > 100:
+        echo0("WARNING: Each file may take about 8 seconds to delete"
+              " (only tested when there are a large number of results)."
+              " At that rate, 14000 results takes over 31 hours.")
+    '''
     item_n = 0
     indent = ""
+    start_dt = datetime.now()
     try:
         for result in results:
             item_n += 1
@@ -915,7 +929,13 @@ def main():
                             # An error was already shown by delete.
                             return status_code
                         else:
-                            echo0(indent+"- delete ({}/{}) ".format(item_n, len(results))+name)
+                            delta = datetime.now() - start_dt
+                            per_delta = delta / item_n
+                            left_count = len(results) - item_n
+                            left_delta = left_count * per_delta
+                            echo0(indent+"- delete ({}/{} est. remaining {}) "
+                                  "".format(item_n, len(results), left_delta)
+                                  + name)
                         deleted_count += 1
                     except FileNotFoundError as ex:
                         '''
@@ -928,13 +948,13 @@ def main():
                         echo0(indent+"- not found: {}".format(name))
                         continue
     except requests.exceptions.ReadTimeout as ex:
-        print("* deleted {} file(s)".format(deleted_count))
+        echo0("* deleted {} file(s)".format(deleted_count))
         inner_ex = ex
         raise
     except KeyboardInterrupt as ex:
         inner_ex = ex
     if deleted_count > 0:
-        print("* deleted {} file(s)".format(deleted_count))
+        echo0("* deleted {} file(s)".format(deleted_count))
     if inner_ex is not None:
         # This is raised late so the count (if > 0) of files deleted so
         #   far is still shown.
