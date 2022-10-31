@@ -55,6 +55,11 @@ from datetime import (
     timedelta,
 )
 
+if sys.version_info.major >= 3:
+    from urllib.parse import urlparse
+else:
+    from urlparse import urlparse
+    input = raw_input
 from urllib.parse import unquote
 from xml.etree.ElementTree import XMLParser
 # python3 -m pip install webdavclient3
@@ -64,8 +69,6 @@ from xml.etree.ElementTree import XMLParser
 # ^ as per https://pypi.org/project/pyncclient/
 import requests  # required for custom exception handling
 
-if sys.version_info.major < 3:
-    input = raw_input
 
 verbosity = 0
 
@@ -367,18 +370,23 @@ class WebDav3Mgr:
         test_xml -- If test is not None, no connection will occur and
             self.client will be None.
         api_route -- The path, starting with slash, relative to
-            options['webdav_hostname']. The resulting path will be
-            stored in self.webdav_options['webdav_hostname']
+            options['webdav_hostname']. The resulting path will be split
+            into self.webdav_options['webdav_hostname'] and
+            self.webdav_options['webdav_root'] (will get /nextcloud or
+            other main route) automatically.
         '''
         self.api_route = api_route
         self.client = None
 
         webdav_options = copy.deepcopy(options)
-        self.webdav_hostname = webdav_options['webdav_hostname']
+        hostname_and_main_route = webdav_options['webdav_hostname']
+        self.webdav_hostname_and_route = hostname_and_main_route + api_route
+        parseresult = urlparse(self.webdav_hostname_and_route)
+        self.hostname = parseresult.scheme + "://" + parseresult.netloc
+        webdav_options['webdav_hostname'] = self.hostname
+        webdav_options['webdav_root'] = parseresult.path  # default is /
         self.user = options.get('webdav_login')
-        webdav_options['webdav_hostname'] += api_route
         self.password = options.get('webdav_password')
-        self.webdav_hostname_and_route = webdav_options['webdav_hostname']
 
         if test_xml is not None:
             return
@@ -387,7 +395,14 @@ class WebDav3Mgr:
         using_webdav3_init = os.path.realpath(webdav3.__file__)
         echo0("* using {}".format(os.path.dirname(using_webdav3_init)))
         # self.host_and_api_route = webdav_options['webdav_hostname']
-        self.client = Client(webdav_options)
+        clean_webdav_options = copy.deepcopy(webdav_options)
+        if 'webdav_password' in webdav_options.keys():
+            stars = "*"*len(clean_webdav_options['webdav_password'])
+            clean_webdav_options['webdav_password'] = stars
+        echo0("* webdav_options={}".format(clean_webdav_options))
+        self.client = Client(
+            webdav_options,
+        )
         # self.client.verify = False
         # ^ To not check SSL certificates (Default = True)
 
@@ -426,7 +441,7 @@ class WebDav3Mgr:
 
         '''
         try_path = rel_url
-        parts = self.webdav_hostname.split("/")
+        parts = self.webdav_hostname_and_route.split("/")
         # ^  ['https:', '', 'example.com', 'nextcloud']
         main_route = None
         # <https://docs.nextcloud.com/server/19/developer_manual/
@@ -457,8 +472,9 @@ class WebDav3Mgr:
             #   headers for this resource with the new ones."
             #   -<https://developer.mozilla.org/en-US/docs/Web/HTTP/Status>
             # ^ resulting url constructed by execute_request is correct
-            # self.client.clean(unquote(rel_url))
+            # res = self.client.clean(unquote(rel_url))
             # ^ has no return statement
+            # res = self.client.clean(path)  # path instead of unquote(rel_url) assumes Poikilos' patch Oct 2022
             # ^ webdav3.exceptions.RemoteResourceNotFound: Remote resource: /trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_00_14.sla.d1667190269 not found
             #   even though its constructed url is https://example.com/nextcloud/remote.php/dav/trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_00_14.sla.d1667190269
             # https://birdo.dyndns.org/nextcloud/remote.php/dav/trashbin/owner/trash/The%2520Path%2520of%2520Resistance_autosave_31_10_2022_01_04.sla.d1667193263
@@ -470,7 +486,7 @@ class WebDav3Mgr:
             urn = Urn(remote_path)
             # echo0("urn={}".format(urn.quote()))
             urn_quote = urn.quote()[1:]
-            # urn_quote = self.webdav_hostname + "/" + urn_quote
+            # urn_quote = self.webdav_hostname_and_route + "/" + urn_quote
             # ^ fails
             # try_remove = "remote.php/dav"  # fails
             # try_remove = "remote.php/dav/"  # fails
@@ -630,8 +646,7 @@ class WebDav3Mgr:
         # echo0("root=".format(root))
         # ^ blank if formatted
         # echo0(root)
-        # ^ "<__main__.DAVNode object at 0x7f21fbb50d00>\n"
-        #   "tag=d:multistatus"
+        # ^ "<__main__.DAVNode object at 0x7f21fbb50d00>"
         # responses = root.find("response")
         # echo0("responses={}".format(responses))
         # ^ None for d:response, d, DAV:response, response
@@ -639,7 +654,7 @@ class WebDav3Mgr:
         for child in root.children:
             # echo0(child.tag, child.attrib)
             # ^ just shows 3 instances of "{DAV:}response {}"
-            echo0("tag={}".format(child.tag))  # "{DAV:}response"
+            echo1("tag={}".format(child.tag))  # "{DAV:}response"
             # echo0("attrib={}".format(child.attrib))  # "{}"
             # echo0("d:href={}".format(child.get("d:href")))  # None
             # echo0("href={}".format(child.get("href")))  # None
@@ -864,7 +879,7 @@ def main():
                 op = var_name
             if var_name in booleans:
                 more_options[var_name] = True
-                echo0("{}=True".format(var_name))
+                # echo0("- '{}' True".format(var_name))
                 var_name = None
     for k, v in DEFAULT_OPTIONS.items():
         current_v = options.get(k)
