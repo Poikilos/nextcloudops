@@ -888,6 +888,9 @@ def main():
                 set_verbosity(2)
             elif arg == "--scrub-scribus":
                 op = var_name
+            elif arg == "--help":
+                usage()
+                return 0
             if var_name in booleans:
                 more_options[var_name] = True
                 # echo0("- '{}' True".format(var_name))
@@ -917,6 +920,7 @@ def main():
         usage()
     echo0("Checking {} result(s)...".format(len(results)))
     deleted_count = 0
+    nomatch_count = 0
     inner_ex = None
     '''
     if len(results) > 100:
@@ -973,14 +977,18 @@ def main():
                         '''
                         echo0(indent+"- not found: {}".format(name))
                         continue
+                else:
+                    nomatch_count += 1
     except requests.exceptions.ReadTimeout as ex:
-        echo0("* deleted {} file(s)".format(deleted_count))
+        echo0("* deleted {} file(s) ({} didn't match the criteria)"
+              "".format(deleted_count, nomatch_count))
         inner_ex = ex
         raise
     except KeyboardInterrupt as ex:
         inner_ex = ex
-    if deleted_count > 0:
-        echo0("* deleted {} file(s)".format(deleted_count))
+    if more_options.get("scrub-scribus") is True:
+        echo0("* deleted {} file(s) ({} didn't match the criteria)"
+              "".format(deleted_count, nomatch_count))
     if inner_ex is not None:
         # This is raised late so the count (if > 0) of files deleted so
         #   far is still shown.
