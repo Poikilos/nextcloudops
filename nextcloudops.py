@@ -115,9 +115,9 @@ def echo2(*args, **kwargs):
 
 
 DEFAULT_OPTIONS = {
- 'webdav_hostname': "",
- 'webdav_login':    "",
- 'webdav_password': ""
+    'webdav_hostname': "",
+    'webdav_login':    "",
+    'webdav_password': ""
 }
 
 SCRIBUS_AUTOSAVES = {
@@ -126,7 +126,18 @@ SCRIBUS_AUTOSAVES = {
     r'.*\.sla.autosave',
     r'.*\.autosave',
 }
-
+'''
+Note that the patterns in this program must be in regex format,
+whereas patterns in Nextcloud client itself must use filesystem
+wildcards as shown in the Nextcloud Client documentation's
+[Using the Synchronization Client](
+https://docs.nextcloud.com/desktop/3.4/navigating.html
+#using-the-synchronization-client) section such as:
+*_autosave_*.sla
+*_autosave_*.sla.*
+*.sla.autosave
+*.autosave
+'''
 
 HOME = os.environ.get("HOME")
 if HOME is None:
